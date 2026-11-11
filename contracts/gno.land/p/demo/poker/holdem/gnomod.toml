@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/poker/holdem"
+gno = "0.9"

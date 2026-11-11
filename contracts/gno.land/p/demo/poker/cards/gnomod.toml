@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/poker/cards"
+gno = "0.9"

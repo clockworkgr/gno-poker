@@ -1,0 +1,24 @@
+{
+  "name": "gno-poker",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "vectors": "pnpm --filter @gno-poker/protocol vectors",
+    "vectors:gno": "node scripts/gen-vectors-gno.ts",
+    "test:vectors": "scripts/test-vectors.sh",
+    "test:gno": "cd contracts && ${GNO_MASTER_BIN:-../.gno-bin}/gno test ./...",
+    "e2e": "pnpm --filter @gno-poker/protocol build && pnpm --filter @gno-poker/bots e2e",
+    "bots": "pnpm --filter @gno-poker/bots bots",
+    "start-local": "scripts/start-local.sh",
+    "deploy": "scripts/deploy.sh",
+    "deploy:onyx": "scripts/deploy-onyx.sh",
+    "web:build": "pnpm --filter @gno-poker/protocol build && pnpm --filter @gno-poker/web exec vite build --mode onyx"
+  }
+}

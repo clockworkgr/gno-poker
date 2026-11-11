@@ -1,0 +1,27 @@
+{
+  "name": "@gno-poker/bots",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "gno-poker-bots": "./src/cli.ts"
+  },
+  "scripts": {
+    "bots": "node src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "dependencies": {
+    "@gno-poker/protocol": "workspace:*",
+    "@gnolang/gno-js-client": "^3.1.0",
+    "@gnolang/tm2-js-client": "^3.3.0",
+    "@noble/hashes": "^2.4.0",
+    "@scure/base": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

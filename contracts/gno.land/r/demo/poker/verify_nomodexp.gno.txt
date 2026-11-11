@@ -1,0 +1,11 @@
+package poker
+
+// Variant of verify.gno for networks without crypto/modexp: challenges are
+// disabled and hands finalize right after the seed reveal. Deploy it as
+// verify.gno in place of the modexp version.
+
+const challengesEnabled = false
+
+func powModP(base, exp []byte) []byte {
+	panic("challenges are disabled on this deployment")
+}

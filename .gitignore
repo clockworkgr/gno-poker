@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.gno-bin/
+.env.local
+test-results/
+playwright-report/
+packages/bots/e2e-results/
+packages/web/e2e/screenshots/
