@@ -161,7 +161,7 @@ export function App() {
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className="app">
+      <div className={`app${tableMatch ? " app-table" : ""}`}>
         <Header onSettings={() => setSettingsOpen(true)} />
         {chain.ok === false && (
           <div className="banner banner-error" role="alert">
