@@ -21,11 +21,16 @@ func bools(b bool) string {
 }
 
 func intList(xs []int) string {
-	parts := make([]string, len(xs))
+	var b strings.Builder
+	b.WriteByte('[')
 	for i, x := range xs {
-		parts[i] = itoa(x)
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(itoa(x))
 	}
-	return "[" + strings.Join(parts, ",") + "]"
+	b.WriteByte(']')
+	return b.String()
 }
 
 func (t *Table) summaryJSON(b *strings.Builder) {
@@ -241,7 +246,10 @@ func GetDeck(tableID uint64) string {
 	return cards.EncodeDeck([]byte(t.Deck))
 }
 
-// Render shows the table list, or one table at path "<id>".
+// renderMaxTables is the most tables the list page shows.
+const renderMaxTables = 50
+
+// Render shows the newest renderMaxTables tables, or one table at path "<id>".
 func Render(path string) string {
 	if path == "" {
 		var b strings.Builder
@@ -251,10 +259,15 @@ func Render(path string) string {
 			return b.String()
 		}
 		b.WriteString("| Table | Blinds | Buy-in | Seated | Hand | Phase |\n|---|---|---|---|---|---|\n")
-		for _, t := range tables {
+		first := 0
+		if len(tables) > renderMaxTables {
+			first = len(tables) - renderMaxTables
+		}
+		for k := len(tables) - 1; k >= first; k-- {
+			t := tables[k]
 			seated := 0
-			for _, s := range t.Seats {
-				if s != nil {
+			for i := 0; i < len(t.Seats) && i < maxSeats; i++ {
+				if t.Seats[i] != nil {
 					seated++
 				}
 			}
@@ -267,6 +280,9 @@ func Render(path string) string {
 				" | " + strconv.FormatInt(t.MinBuyIn, 10) + "-" + strconv.FormatInt(t.MaxBuyIn, 10) +
 				" | " + itoa(seated) + "/" + itoa(t.MaxPlayers) + " | " + strconv.FormatUint(t.HandNo, 10) + " | " + phase + " |\n")
 		}
+		if first > 0 {
+			b.WriteString("\nShowing the newest " + itoa(renderMaxTables) + " of " + itoa(len(tables)) + " tables. Older tables are at `:<id>`.\n")
+		}
 		return b.String()
 	}
 	id, err := strconv.ParseUint(path, 10, 64)
@@ -278,7 +294,8 @@ func Render(path string) string {
 	b.WriteString("# Table " + path + "\n\n")
 	b.WriteString("Blinds " + strconv.FormatInt(t.SmallBlind, 10) + "/" + strconv.FormatInt(t.BigBlind, 10) + " ugnot, hand " + strconv.FormatUint(t.HandNo, 10) + "\n\n")
 	b.WriteString("| Seat | Player | Stack | Status |\n|---|---|---|---|\n")
-	for i, s := range t.Seats {
+	for i := 0; i < len(t.Seats) && i < maxSeats; i++ {
+		s := t.Seats[i]
 		if s == nil {
 			b.WriteString("| " + itoa(i) + " | (empty) | | |\n")
 			continue
@@ -307,13 +324,14 @@ func Render(path string) string {
 	b.WriteString("Pot " + strconv.FormatInt(h.Bet.Pot(), 10) + " ugnot, deadline block " + strconv.FormatInt(h.Deadline, 10) + "\n\n")
 	if h.Cards != nil {
 		board := []string{}
-		for _, c := range h.Cards[2*n : 2*n+5] {
-			board = append(board, cards.CardString(c))
+		for k := 0; k < 5; k++ {
+			board = append(board, cards.CardString(h.Cards[2*n+k]))
 		}
 		b.WriteString("Board: " + strings.Join(board, " ") + "\n\n")
 	}
 	b.WriteString("| # | Seat | Bet | Status | Cards | Result |\n|---|---|---|---|---|---|\n")
-	for j, p := range h.Players {
+	for j := 0; j < n && j < maxSeats; j++ {
+		p := h.Players[j]
 		bp := h.Bet.Players[j]
 		status := ""
 		if bp.Folded {

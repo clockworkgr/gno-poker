@@ -4,6 +4,7 @@
 #   gno.land/p/<g1addr>/poker/cards, gno.land/p/<g1addr>/poker/holdem, gno.land/r/<g1addr>/poker
 #
 #   scripts/deploy-onyx.sh              # key "mainclock" (g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm)
+#   scripts/deploy-onyx.sh --wait       # also poll until all three packages are live
 #   scripts/deploy-onyx.sh --dry-run    # stage and print the gnokey commands, send nothing
 #   KEY=other scripts/deploy-onyx.sh    # another key; its address becomes the namespace
 #
@@ -14,8 +15,9 @@
 #              gno can sign transactions an older chain cannot decode),
 #              GAS_WANTED, GAS_FEE, MAX_DEPOSIT (passed through to deploy.sh).
 #
-# Test files are left out (they only cost storage deposit). Packages already live are skipped, so
-# the script can be rerun. If the chain has no crypto/modexp, the realm is deployed without
+# Test files are left out (they only cost storage deposit). All three packages are submitted in
+# one run without waiting for each to go live; live packages are skipped and inert ones
+# (held for review) are submitted again, so the script can be rerun. If the chain has no crypto/modexp, the realm is deployed without
 # challenges (see deploy.sh --no-modexp); otherwise with them.
 set -euo pipefail
 
@@ -25,10 +27,12 @@ CHAIN_ID="${CHAIN_ID:-onyx-1}"
 REMOTE="${REMOTE:-https://rpc.onyx.testnets.gno.land:443}"
 EXPECTED_ADDR="g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm"
 DRYRUN=0
+PASS=()
 for a in "$@"; do
   case "$a" in
     --dry-run) DRYRUN=1 ;;
-    -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --wait) PASS+=(--wait) ;;
+    -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $a" >&2; exit 1 ;;
   esac
 done
@@ -71,6 +75,7 @@ else
   EXTRA=(--no-modexp)
 fi
 [[ $DRYRUN -eq 1 ]] && EXTRA+=(--dry-run)
+[[ ${#PASS[@]} -gt 0 ]] && EXTRA+=("${PASS[@]}")
 
 echo "chain:     $CHAIN_ID ($REMOTE)"
 echo "key:       $KEY ($ADDR), balance ${BALANCE:-unknown}"

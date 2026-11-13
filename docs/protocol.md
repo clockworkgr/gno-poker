@@ -160,7 +160,7 @@ Queries (non-crossing, return JSON strings unless noted):
 | `GetTable(tableID uint64) string` | Full table and current hand state (below) |
 | `GetDeck(tableID uint64) string` | Latest deck pass of the current hand as plain base64 (not JSON); `""` before the first pass |
 | `ChallengesEnabled() bool` | |
-| `Render(path string) string` | Markdown for gnoweb: table list, and one table at `path = "<id>"` |
+| `Render(path string) string` | Markdown for gnoweb: the newest 50 tables, and one table at `path = "<id>"` |
 
 `GetTable` JSON (all amounts as decimal strings, heights as numbers):
 

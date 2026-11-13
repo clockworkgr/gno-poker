@@ -238,8 +238,19 @@ export class PokerClient {
       int(p.actionTimeoutBlocks), int(p.challengeWindowBlocks), int(p.challengeBond),
     ], 0n, opts);
     const vs = parseGnoResults(r.data);
-    if (vs.length !== 1) throw new Error(`CreateTable: unexpected result "${r.data}"`);
-    return Number(vs[0]!.value);
+    if (vs.length === 1) return Number(vs[0]!.value);
+    // Some wallets (Adena) do not hand back the call's return value. The transaction succeeded,
+    // so find the table in the list: the newest untouched one with these parameters.
+    const match = (await this.listTables())
+      .filter((t) => t.handNo === 0 && t.seated === 0 && t.maxPlayers === p.maxPlayers
+        && t.smallBlind === BigInt(p.smallBlind) && t.bigBlind === BigInt(p.bigBlind)
+        && t.minBuyIn === BigInt(p.minBuyIn) && t.maxBuyIn === BigInt(p.maxBuyIn)
+        && t.actionTimeoutBlocks === Number(p.actionTimeoutBlocks)
+        && t.challengeWindowBlocks === Number(p.challengeWindowBlocks)
+        && t.challengeBond === BigInt(p.challengeBond))
+      .reduce((best, t) => Math.max(best, t.id), 0);
+    if (match === 0) throw new Error(`CreateTable: the transaction succeeded but the new table was not found (result "${r.data}")`);
+    return match;
   }
 
   /**

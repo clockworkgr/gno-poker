@@ -2,7 +2,7 @@
 # Publishes the poker packages with gnokey under a namespace of your choice.
 #
 #   scripts/deploy.sh --namespace NS --key KEYNAME [--remote HOST:PORT] [--chain-id ID]
-#                     [--home GNOKEY_HOME] [--no-modexp] [--no-tests] [--dry-run]
+#                     [--home GNOKEY_HOME] [--no-modexp] [--no-tests] [--wait] [--dry-run]
 #
 # The placeholder paths gno.land/p/demo/poker/... and gno.land/r/demo/poker are rewritten to
 # gno.land/p/NS/poker/... and gno.land/r/NS/poker in a temporary copy of contracts/ (the sources
@@ -12,10 +12,13 @@
 #              (challenges disabled, hands finalize at reveal) and *_test.gno files are left out
 #              (the tests import crypto/modexp). Implies --no-tests.
 # --no-tests   leave out *_test.gno files.
+# --wait       after submitting, poll until every package is live (default: do not wait).
 # --dry-run    prepare the copy and print the gnokey commands without running them.
 #
-# Packages that are already live on the chain are skipped, so the script can be rerun after a
-# failure. --remote takes host:port or a full http(s) URL.
+# All packages are submitted one after the other without waiting for the previous one to go
+# live, so a chain that holds new packages for review can review them together. Packages that
+# are already live are skipped; a package that is on chain but not live (inert, held for
+# review) is submitted again with the current sources. The script can be rerun after a failure. --remote takes host:port or a full http(s) URL.
 #
 # Environment: GNOKEY (gnokey binary; default $GNO_MASTER_BIN/gnokey, else gnokey on PATH),
 #              GAS_WANTED (default 300000000 per package), GAS_FEE (default GAS_WANTED/1000 + 10%),
@@ -23,9 +26,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-NS="" KEY="" REMOTE="127.0.0.1:26657" CHAIN_ID="dev" HOME_DIR="" NOMODEXP=0 NOTESTS=0 DRYRUN=0
+NS="" KEY="" REMOTE="127.0.0.1:26657" CHAIN_ID="dev" HOME_DIR="" NOMODEXP=0 NOTESTS=0 DRYRUN=0 WAIT=0
 
-usage() { sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --namespace) NS="$2"; shift 2 ;;
@@ -35,6 +38,7 @@ while [[ $# -gt 0 ]]; do
     --home) HOME_DIR="$2"; shift 2 ;;
     --no-modexp) NOMODEXP=1; NOTESTS=1; shift ;;
     --no-tests) NOTESTS=1; shift ;;
+    --wait) WAIT=1; shift ;;
     --dry-run) DRYRUN=1; shift ;;
     -h|--help) usage 0 ;;
     *) echo "unknown argument: $1" >&2; usage 1 ;;
@@ -95,7 +99,11 @@ deploy() {
   local dir="$1" path="$2" s
   if [[ $DRYRUN -eq 0 ]]; then
     s="$(status "$path")"
-    if [[ "$s" == live ]]; then echo "==> $path: already live, skipped"; return; fi
+    case "$s" in
+      live) echo "==> $path: already live, skipped"; return ;;
+      none|absent|unknown) ;;
+      *) echo "==> $path: on chain but $s, submitting again" ;;
+    esac
   fi
   local cmd=("$GNOKEY" maketx addpkg -pkgdir "$dir" -pkgpath "$path" -gas-wanted "$GAS_WANTED" -gas-fee "$GAS_FEE"
     -max-deposit "$MAX_DEPOSIT" -broadcast -chainid "$CHAIN_ID" -remote "$REMOTE")
@@ -103,18 +111,17 @@ deploy() {
   cmd+=("$KEY")
   echo "==> $path ($(ls "$dir" | tr '\n' ' '))"
   if [[ $DRYRUN -eq 1 ]]; then echo "${cmd[*]}"; return; fi
+  local rc=0
   if [[ -n "${GNOKEY_PASSWORD+x}" ]]; then
-    printf '%s\n' "$GNOKEY_PASSWORD" | "${cmd[@]}" -insecure-password-stdin
+    printf '%s\n' "$GNOKEY_PASSWORD" | "${cmd[@]}" -insecure-password-stdin || rc=$?
   else
-    "${cmd[@]}"
+    "${cmd[@]}" || rc=$?
   fi
-  # A chain may park a new package until it is approved; dependents need it live first.
-  for _ in $(seq 1 60); do
-    s="$(status "$path")"
-    [[ "$s" == live || "$s" == unknown ]] && break
-    sleep 2
-  done
-  [[ "$s" == live || "$s" == unknown ]] || { echo "$path is still '$s' after two minutes; rerun this script once it is live" >&2; exit 1; }
+  if [[ $rc -ne 0 ]]; then
+    echo "$path was not accepted. If the error is about an import that is not live yet, this chain" >&2
+    echo "does not take a package before its dependencies are live: rerun this script once they are." >&2
+    exit "$rc"
+  fi
 }
 
 # Move the tree so that directory names match the new paths.
@@ -125,4 +132,30 @@ mv "$WORK/gno.land/r/demo/poker" "$WORK/out/r/$NS/poker"
 deploy "$WORK/out/p/$NS/poker/cards" "gno.land/p/$NS/poker/cards"
 deploy "$WORK/out/p/$NS/poker/holdem" "gno.land/p/$NS/poker/holdem"
 deploy "$WORK/out/r/$NS/poker" "gno.land/r/$NS/poker"
-echo "deployed gno.land/r/$NS/poker ($([[ $NOMODEXP -eq 1 ]] && echo 'challenges disabled' || echo 'with crypto/modexp challenges'))"
+[[ $DRYRUN -eq 1 ]] && exit 0
+
+PATHS=("gno.land/p/$NS/poker/cards" "gno.land/p/$NS/poker/holdem" "gno.land/r/$NS/poker")
+report() {
+  ALL_LIVE=1
+  local p s
+  for p in "${PATHS[@]}"; do
+    s="$(status "$p")"
+    echo "    $p: $s"
+    [[ "$s" == live || "$s" == unknown ]] || ALL_LIVE=0
+  done
+}
+VARIANT="$([[ $NOMODEXP -eq 1 ]] && echo 'challenges disabled' || echo 'with crypto/modexp challenges')"
+echo "submitted ($VARIANT). Status:"
+report
+if [[ $WAIT -eq 1 ]]; then
+  while [[ $ALL_LIVE -eq 0 ]]; do
+    sleep 30
+    echo "waiting for all packages to be live:"
+    report
+  done
+fi
+if [[ $ALL_LIVE -eq 1 ]]; then
+  echo "gno.land/r/$NS/poker is live"
+else
+  echo "not all packages are live yet; rerun this script to see the status (it resubmits whatever is not live)"
+fi

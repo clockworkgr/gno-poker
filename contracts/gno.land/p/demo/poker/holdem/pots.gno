@@ -1,5 +1,8 @@
 package holdem
 
+// MaxPlayers is the largest number of players in one hand.
+const MaxPlayers = 6
+
 // Pot is one main or side pot.
 type Pot struct {
 	Amount   int64
@@ -87,9 +90,14 @@ func sameInts(a, b []int) bool {
 // Distribute awards each pot to its best eligible scores, splitting ties
 // equally. The odd chips of a split pot all go to the winner that comes first
 // in oddOrder (player indices clockwise from the button). It returns the
-// amount won per player; the sum always equals the sum of the pots.
+// amount won per player; the sum always equals the sum of the pots. It panics
+// for more than MaxPlayers scores.
 func Distribute(pots []Pot, scores []int, oddOrder []int) []int64 {
-	won := make([]int64, len(scores))
+	if len(scores) > MaxPlayers {
+		panic("too many players")
+	}
+	var buf [MaxPlayers]int64
+	won := buf[:len(scores):len(scores)]
 	for _, p := range pots {
 		best := -1
 		for _, i := range p.Eligible {
@@ -135,9 +143,13 @@ func contains(xs []int, x int) bool {
 
 // OddChipOrder returns player indices clockwise starting left of the button,
 // for hand players indexed from the small blind (heads-up: index 0 is the
-// button).
+// button). It panics unless 0 <= n <= MaxPlayers.
 func OddChipOrder(n int) []int {
-	out := make([]int, n)
+	if n < 0 || n > MaxPlayers {
+		panic("bad player count")
+	}
+	var buf [MaxPlayers]int
+	out := buf[:n:n]
 	if n == 2 {
 		out[0], out[1] = 1, 0
 		return out

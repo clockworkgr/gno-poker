@@ -252,4 +252,14 @@ func TestBase64(t *testing.T) {
 			t.Fatalf("accepted %q", bad)
 		}
 	}
+	full := base64.StdEncoding.EncodeToString(make([]byte, DeckLen))
+	if len(full) != MaxBase64Len {
+		t.Fatalf("MaxBase64Len = %d, a deck encodes to %d", MaxBase64Len, len(full))
+	}
+	if got, err := DecodeBase64(full); err != nil || len(got) != DeckLen {
+		t.Fatalf("full deck: %v", err)
+	}
+	if _, err := DecodeBase64(full + "QUJD"); err == nil {
+		t.Fatal("accepted input longer than a deck")
+	}
 }

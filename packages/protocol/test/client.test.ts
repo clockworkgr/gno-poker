@@ -26,6 +26,22 @@ const querier = {
 };
 
 describe("PokerClient", () => {
+  it("finds the new table in the list when the wallet returns no call result", async () => {
+    const row = (id: number, seated: number, bond: string) => ({
+      id, smallBlind: "1000", bigBlind: "2000", minBuyIn: "40000", maxBuyIn: "200000", maxPlayers: 6,
+      actionTimeoutBlocks: 30, challengeWindowBlocks: 30, challengeBond: bond, button: -1, handNo: 0, seated, phase: "",
+    });
+    const list = [row(1, 0, "10000"), row(2, 0, "10000"), row(3, 1, "10000"), row(4, 0, "99")];
+    const q = { evaluate: async () => `(${JSON.stringify(JSON.stringify(list))} string)` };
+    const params = {
+      smallBlind: 1000n, bigBlind: 2000n, minBuyIn: 40000n, maxBuyIn: 200000n, maxPlayers: 6,
+      actionTimeoutBlocks: 30, challengeWindowBlocks: 30, challengeBond: 10000n,
+    };
+    const c = new PokerClient({ querier: q, pkgPath: "gno.land/r/test/poker" });
+    expect(await c.createTable(recorder("").signer, params)).toBe(2);
+    await expect(c.createTable(recorder("").signer, { ...params, maxPlayers: 2 })).rejects.toThrow(/not found/);
+  });
+
   it("formats transaction arguments as strings and attaches coins", async () => {
     const { calls, signer } = recorder("(42 uint64)");
     const c = new PokerClient({ querier, pkgPath: "gno.land/r/test/poker", gas: { Act: { gasWanted: 5n } } });

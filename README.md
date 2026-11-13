@@ -97,7 +97,9 @@ scripts/deploy.sh --namespace myname --key mykey ... --no-modexp   # network wit
 The script copies `contracts/` to a temporary directory, rewrites the placeholder paths to
 `gno.land/p/<namespace>/poker/...` and `gno.land/r/<namespace>/poker`, and publishes cards, holdem
 and the realm with `gnokey maketx addpkg` (`--home` for the key directory, `--dry-run` to only
-print the commands, `GNOKEY_PASSWORD` to pass the password on stdin). `--no-modexp` deploys
+print the commands, `GNOKEY_PASSWORD` to pass the password on stdin). The three packages are
+submitted in one run without waiting for each to go live, live packages are skipped and
+inert ones (held for review) are submitted again; `--wait` polls until all three are live. `--no-modexp` deploys
 `verify_nomodexp.gno.txt` as `verify.gno` and leaves out the `*_test.gno` files: challenges are
 disabled and hands finalize at reveal, so the last-shuffler attack is open on such a deployment.
 After deploying, `node packages/bots/scripts/deploy-smoke.ts <rpc-url> gno.land/r/<namespace>/poker`

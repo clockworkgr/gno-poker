@@ -52,9 +52,9 @@ func mustHex(s string) []byte {
 
 // P returns a copy of the prime as 256 big-endian bytes.
 func P() []byte {
-	out := make([]byte, CardLen)
-	copy(out, pBytes)
-	return out
+	var out [CardLen]byte
+	copy(out[:], pBytes)
+	return out[:]
 }
 
 // CanonRoot returns the hardcoded canonical deck root.
@@ -108,7 +108,8 @@ func CardPreimage(c int) []byte {
 
 // Permutation returns the Fisher-Yates permutation of 0..51 determined by seed.
 func Permutation(seed []byte) []int {
-	a := make([]int, DeckSize)
+	var arr [DeckSize]int
+	a := arr[:]
 	for i := range a {
 		a[i] = i
 	}
@@ -216,7 +217,8 @@ func nodeHash(l, r []byte) []byte {
 
 func rootFromLeaves(leaves [][]byte) []byte {
 	level := make([][]byte, 64)
-	zero := make([]byte, 32)
+	var zeroBuf [32]byte
+	zero := zeroBuf[:]
 	for i := 0; i < 64; i++ {
 		if i < DeckSize {
 			level[i] = leaves[i]
@@ -257,7 +259,8 @@ func MerkleProof(deck []byte, i int) []byte {
 	}
 	level := make([][]byte, 64)
 	leaves := deckLeaves(deck)
-	zero := make([]byte, 32)
+	var zeroBuf [32]byte
+	zero := zeroBuf[:]
 	for k := 0; k < 64; k++ {
 		if k < DeckSize {
 			level[k] = leaves[k]
@@ -299,7 +302,8 @@ func VerifyProof(root, el []byte, i int, proof []byte) bool {
 // OfficialCards maps every deck position to its card index given the
 // permutations of hand players 0..n-1.
 func OfficialCards(perms [][]int) []int {
-	out := make([]int, DeckSize)
+	var arr [DeckSize]int
+	out := arr[:]
 	for i := 0; i < DeckSize; i++ {
 		idx := i
 		for j := len(perms) - 1; j >= 0; j-- {

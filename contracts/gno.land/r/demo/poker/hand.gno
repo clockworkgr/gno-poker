@@ -74,6 +74,10 @@ type Hand struct {
 	Settled  bool // contributions have been paid out or refunded
 }
 
+// maxSeats is the largest table; per-player buffers are sized by it.
+const maxSeats = holdem.MaxPlayers
+
+// n is the number of players in the hand, at most maxSeats.
 func (h *Hand) n() int { return len(h.Players) }
 
 func (h *Hand) playerIndex(seat int) int {
@@ -169,7 +173,11 @@ func StartHand(cur realm, tableID uint64) {
 			s.Waiting = false
 		}
 	}
-	stacks := make([]int64, len(order))
+	if len(order) > maxSeats {
+		panic("too many players")
+	}
+	var stackBuf [maxSeats]int64
+	stacks := stackBuf[:len(order):len(order)]
 	players := make([]*HandPlayer, len(order))
 	for j, si := range order {
 		stacks[j] = t.Seats[si].Stack
@@ -263,7 +271,8 @@ func (t *Table) acceptDeck(h *Hand, deckB64 string) {
 
 func (h *Hand) startDeal(ctx *txCtx, t *Table, phase int) {
 	h.Phase = phase
-	h.Owing = make([]bool, h.n())
+	var owing [maxSeats]bool
+	h.Owing = owing[:h.n():h.n()]
 	for j := range h.Owing {
 		h.Owing[j] = true
 	}
@@ -411,9 +420,10 @@ func (t *Table) showdown(ctx *txCtx) {
 	}
 	h.Cards = cards.OfficialCards(perms)
 	board := h.Cards[2*n : 2*n+5]
-	contrib := make([]int64, n)
-	folded := make([]bool, n)
-	scores := make([]int, n)
+	var contribBuf [maxSeats]int64
+	var foldedBuf [maxSeats]bool
+	var scoreBuf [maxSeats]int
+	contrib, folded, scores := contribBuf[:n:n], foldedBuf[:n:n], scoreBuf[:n:n]
 	for j, bp := range h.Bet.Players {
 		contrib[j] = bp.Contributed
 		folded[j] = bp.Folded
@@ -463,7 +473,8 @@ func (t *Table) cleanupSeats(ctx *txCtx) {
 func (t *Table) abort(ctx *txCtx, penalized []int, convicted bool) {
 	h := t.Hand
 	n := h.n()
-	credits := make([]int64, n)
+	var creditBuf [maxSeats]int64
+	credits := creditBuf[:n:n]
 	if !h.Settled {
 		for j, p := range h.Players {
 			c := h.Bet.Players[j].Contributed
@@ -471,7 +482,8 @@ func (t *Table) abort(ctx *txCtx, penalized []int, convicted bool) {
 			credits[j] = c
 		}
 	}
-	isPen := make([]bool, n)
+	var penBuf [maxSeats]bool
+	isPen := penBuf[:n:n]
 	for _, j := range penalized {
 		isPen[j] = true
 	}

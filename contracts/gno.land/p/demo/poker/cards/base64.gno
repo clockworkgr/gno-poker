@@ -20,8 +20,17 @@ var b64Rev = func() [256]byte {
 
 var errBase64 = errors.New("invalid base64")
 
-// DecodeBase64 decodes padded standard base64 and rejects non-canonical input.
+// MaxBase64Len is the longest input DecodeBase64 accepts: one full deck.
+const MaxBase64Len = (DeckLen + 2) / 3 * 4
+
+var errBase64TooLong = errors.New("base64 input too long")
+
+// DecodeBase64 decodes padded standard base64 and rejects non-canonical input
+// and anything longer than MaxBase64Len.
 func DecodeBase64(s string) ([]byte, error) {
+	if len(s) > MaxBase64Len {
+		return nil, errBase64TooLong
+	}
 	if len(s)%4 != 0 {
 		return nil, errBase64
 	}
@@ -35,7 +44,9 @@ func DecodeBase64(s string) ([]byte, error) {
 			pad++
 		}
 	}
-	out := make([]byte, len(s)/4*3-pad)
+	// At most DeckLen bytes, by the MaxBase64Len check above.
+	n := len(s)/4*3 - pad
+	out := make([]byte, 0, n)[:n]
 	full := len(s) / 4
 	if pad > 0 {
 		full--

@@ -142,7 +142,7 @@ func CreateTable(cur realm, smallBlind, bigBlind, minBuyIn, maxBuyIn int64, maxP
 	if minBuyIn < bigBlind || maxBuyIn < minBuyIn {
 		panic("invalid buy-in limits")
 	}
-	if maxPlayers < 2 || maxPlayers > 6 {
+	if maxPlayers < 2 || maxPlayers > maxSeats {
 		panic("maxPlayers must be between 2 and 6")
 	}
 	if actionTimeoutBlocks <= 0 || challengeWindowBlocks <= 0 {
